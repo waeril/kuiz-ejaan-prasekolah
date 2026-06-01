@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kuiz Ejaan Cemerlang</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main>
+    <div id="splashScreen" class="container active">
+      <h1>Latihan Ejaan</h1>
+      
+      <div class="profile-section">
+        <select id="profileSelect" class="modern-input" aria-label="Pilih Profil Sedia Ada">
+          <option value="">-- Pilih Profil Sedia Ada --</option>
+        </select>
+        
+        <button id="padamBtn" class="danger-btn" style="display: none;">Padam Profil</button>
+        
+        <div class="divider">
+          <span>ATAU</span>
+        </div>
+        
+        <input type="text" id="newNameInput" class="modern-input" placeholder="Nama Baru" maxlength="15" aria-label="Nama Baru">
+        
+        <select id="levelSelect" class="modern-input" style="margin-top: 15px;" aria-label="Pilih Tahap">
+          <option value="1">Tahap 1: Huruf Hilang</option>
+          <option value="2">Tahap 2: Suku Kata Hilang</option>
+          <option value="3">Tahap 3: Eja Semua Huruf</option>
+        </select>
+      </div>
+
+      <button id="mulaBtn" class="primary-btn">Mula</button>
+      <div class="button-group">
+        <button id="prestasiBtn" class="secondary-btn">Prestasi</button>
+        <button id="analisisBtn" class="info-btn">Analisis</button>
+      </div>
+    </div>
+
+    <div id="quizContainer" class="container" style="display: none;">
+      <h1 id="quizGreeting">Latihan Ejaan</h1>
+      <img id="questionImage" class="card-image" src="" alt="Soalan Ejaan" />
+      <h2 id="wordDisplay" class="word-display"></h2>
+      
+      <input type="text" id="answerInput" class="modern-input" placeholder="Taip jawapan..." autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="off" aria-label="Jawapan">
+      <button id="submitBtn" class="primary-btn">Jawab</button>
+      
+      <div id="feedbackMsg" class="feedback"></div>
+      <p id="progress" class="progress-text"></p>
+    </div>
+
+    <div id="resultScreen" class="container" style="display: none;">
+      <h1>Tahniah!</h1>
+      <h2>Markah anda: <span id="finalScoreText" class="highlight-text">0/10</span></h2>
+      <h3 style="color: #4a5568;">Peratus: <span id="finalPercentText">0%</span></h3>
+      <h2 style="margin-top: 15px;">Gred: <span id="finalGradeText" style="font-size: 3rem; font-weight: 900;">A</span></h2>
+      
+      <div class="button-group" style="margin-top: 25px;">
+        <button id="resultPrestasiBtn" class="primary-btn">Lihat Prestasi</button>
+        <button id="resultKembaliBtn" class="secondary-btn">Menu Utama</button>
+      </div>
+    </div>
+
+    <div id="prestasiScreen" class="container" style="display: none;">
+      <h1>Prestasi: <span id="prestasiName" class="highlight-text"></span></h1>
+      
+      <select id="prestasiLevelSelect" class="modern-input" style="margin-bottom: 15px;">
+        <option value="1">Tahap 1</option>
+        <option value="2">Tahap 2</option>
+        <option value="3">Tahap 3</option>
+      </select>
+
+      <div class="data-box" style="padding: 10px;">
+        <canvas id="performanceChart" style="display: none;"></canvas>
+        <div id="prestasiData"></div>
+      </div>
+      
+      <button id="kembaliBtn" class="secondary-btn">Kembali</button>
+    </div>
+
+    <div id="analisisScreen" class="container" style="display: none;">
+      <h1>Analisis Profil: <span id="analisisName" class="highlight-text"></span></h1>
+      
+      <select id="analisisLevelSelect" class="modern-input" style="margin-bottom: 15px;">
+        <option value="1">Tahap 1</option>
+        <option value="2">Tahap 2</option>
+        <option value="3">Tahap 3</option>
+      </select>
+
+      <div id="analisisData" class="data-box text-left"></div>
+      <button id="kembaliAnalisisBtn" class="secondary-btn">Kembali</button>
+    </div>
+  </main>
+
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
