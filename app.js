@@ -14,14 +14,16 @@ const padamBtn = document.getElementById('padamBtn');
 const mulaBtn = document.getElementById('mulaBtn');
 const prestasiBtn = document.getElementById('prestasiBtn');
 const analisisBtn = document.getElementById('analisisBtn');
-const levelSelect = document.getElementById('levelSelect'); 
+const levelSelect = document.getElementById('levelSelect');
+const abortQuizBtn = document.getElementById('abortQuizBtn');
 
 // Dropdowns for specific views
 const prestasiLevelSelect = document.getElementById('prestasiLevelSelect');
 const analisisLevelSelect = document.getElementById('analisisLevelSelect');
 
 // Game Elements
-const questionImage = document.getElementById('questionImage');
+//const questionImage = document.getElementById('questionImage');
+const speakBtn = document.getElementById('speakBtn');
 const wordDisplay = document.getElementById('wordDisplay');
 const answerInput = document.getElementById('answerInput');
 const submitBtn = document.getElementById('submitBtn');
@@ -199,6 +201,18 @@ answerInput.addEventListener('keydown', (event) => {
   }
 });
 
+abortQuizBtn.addEventListener('click', () => {
+  const confirmAbort = confirm("Adakah anda pasti mahu kembali ke menu utama? Markah sesi ini tidak akan disimpan.");
+  
+  if (confirmAbort) {
+    // Stop the voice engine if it's currently spelling a word out loud
+    window.speechSynthesis.cancel(); 
+    
+    // Route back to the main menu (score is naturally lost because endGame() is never called)
+    showScreen('menu'); 
+  }
+});
+
 // --- LINGUISTIC PARSERS ---
 function tokenizeWord(word) {
   if (!word) return [];
@@ -212,7 +226,9 @@ function syllabifyCleanWord(word) {
     .replace(/NG/g, "ŋ").replace(/NY/g, "ɲ")
     .replace(/SY/g, "ʃ").replace(/KH/g, "χ").replace(/GH/g, "ɣ");
     
-  const syllableRegex = /[^AEIOU]*[AEIOU]+(?:[^AEIOU](?![AEIOU]))*/g;
+  // 👉 FIX: Removed the '+' after [AEIOU] so it strictly assigns ONE vowel per syllable
+  const syllableRegex = /[^AEIOU]*[AEIOU](?:[^AEIOU](?![AEIOU]))*/g;
+  
   let matches = safeWord.match(syllableRegex) || [safeWord];
   
   return matches.map(syl => syl
@@ -234,13 +250,77 @@ function segmentWordBySyllable(word) {
   return tokens;
 }
 
+// --- AUDIO ENGINE ---
+const voiceAlert = document.getElementById('voiceAlert');
+
+function checkMalayVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  // Scan strictly for language code 'ms'
+  const hasMalay = voices.some(voice => voice.lang.toLowerCase().includes('ms'));
+  
+  if (!hasMalay && voiceAlert) {
+    voiceAlert.style.display = 'block'; // Show instructions if missing
+  } else if (voiceAlert) {
+    voiceAlert.style.display = 'none';  // Keep hidden if everything is perfect
+  }
+}
+
+// Chrome/Android loads voices asynchronously, so we run the check when they change
+if (window.speechSynthesis.onvoiceschanged !== undefined) {
+  window.speechSynthesis.onvoiceschanged = checkMalayVoice;
+}
+
+// Fallback execution for Safari/iOS devices on initial load
+setTimeout(checkMalayVoice, 500);
+
+function speakWord(word) {
+  if (!word) return;
+  
+  window.speechSynthesis.cancel(); 
+  
+  const utterance = new SpeechSynthesisUtterance(word);
+  const voices = window.speechSynthesis.getVoices();
+  
+  // Find native Malay voice asset
+  const malayVoice = voices.find(voice => voice.lang.toLowerCase().includes('ms'));
+  
+  if (malayVoice) {
+    utterance.voice = malayVoice;
+    utterance.lang = malayVoice.lang;
+  } else {
+    // If missing, enforce standard Malay targeting string
+    utterance.lang = 'ms-MY'; 
+  }
+  
+  utterance.rate = 0.6; 
+  utterance.pitch = 1.1; 
+  
+  window.speechSynthesis.speak(utterance);
+}
+
+// Bind button to repeat word
+if (speakBtn) {
+  speakBtn.addEventListener('click', () => {
+    speakWord(currentFullWord);
+  });
+}
+
 // --- GAMEPLAY ENGINE ---
 function startSession() {
   score = 0;
   currentQuestionIndex = 0;
   quizGreeting.textContent = `Tahap ${currentLevel}: Selamat Berjaya, ${currentUser}!`;
   
-  let shuffled = [...questions].sort(() => 0.5 - Math.random());
+  // Directly grab the single master list from questions.js
+  const availableQuestions = (typeof spellingQuestions !== 'undefined') ? spellingQuestions : [];
+
+  if (!availableQuestions || availableQuestions.length === 0) {
+    alert("Ralat: Pangkalan data perkataan tidak dijumpai. Pastikan questions.js dimuatkan.");
+    return;
+  }
+
+  // Shuffle the massive list and pick 10 random words
+  let shuffled = [...availableQuestions].sort(() => 0.5 - Math.random());
   sessionQuestions = shuffled.slice(0, 10);
   
   showScreen('game');
@@ -248,77 +328,82 @@ function startSession() {
 }
 
 function loadQuestion() {
+  // Get the current question object from your list
   const q = sessionQuestions[currentQuestionIndex];
-  currentFullWord = q.word;
-  questionImage.src = q.image;
+  
+  // Access the word directly
+  currentFullWord = q.word.toUpperCase(); 
+  
+  // Trigger the text-to-speech voice engine
+  speakWord(currentFullWord); 
+  
+  // Clear out the previous inputs and RE-ENABLE the input box
   answerInput.value = "";
+  answerInput.disabled = false; 
   feedbackMsg.innerHTML = "";
   feedbackMsg.className = "feedback";
-  
-  if (currentLevel === 1) {
-    const syllables = segmentWordBySyllable(q.word);
-    let validIndices = syllables.map((s, i) => (s !== "-" && s !== " ") ? i : -1).filter(i => i !== -1);
-    let sIdx = validIndices[Math.floor(Math.random() * validIndices.length)];
-    let targetSyllable = syllables[sIdx];
-    
-    let tokensInSyllable = tokenizeWord(targetSyllable);
-    let tIdx = Math.floor(Math.random() * tokensInSyllable.length);
-    
-    currentAnswer = tokensInSyllable[tIdx];
-    window.currentTargetSyllable = targetSyllable;
-    
-    let displayHTML = "";
-    syllables.forEach((syl, i) => {
-      if(i === sIdx) {
-        let t = tokenizeWord(syl);
-        t[tIdx] = `<span style="color:#4c51bf;">_</span>`;
-        displayHTML += t.join("");
-      } else {
-        displayHTML += syl;
-      }
-    });
-    wordDisplay.innerHTML = displayHTML;
-    
-  } else if (currentLevel === 2) {
-    const syllables = segmentWordBySyllable(q.word);
-    let validIndices = syllables.map((s, i) => (s !== "-" && s !== " ") ? i : -1).filter(i => i !== -1);
-    let hiddenIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
-    
-    currentAnswer = syllables[hiddenIndex];
-    let displayArray = [...syllables];
-    displayArray[hiddenIndex] = "_".repeat(currentAnswer.length);
-    wordDisplay.innerHTML = displayArray.map(char => char.includes("_") ? `<span style="color:#4c51bf;">${char}</span>` : char).join("");
-    
-  } else if (currentLevel === 3) {
-    currentAnswer = q.word; 
-    const tokens = tokenizeWord(q.word);
-    let displayArray = tokens.map(t => (t === "-" || t === " ") ? t : "_");
-    wordDisplay.innerHTML = displayArray.join("");
-  }
-  
-  progressText.textContent = `Soalan ${currentQuestionIndex + 1} / ${sessionQuestions.length}`;
-  answerInput.disabled = false;
-  submitBtn.disabled = false;
-  submitBtn.textContent = "Jawab";
-  
   questionStartTime = Date.now();
-  
-  // Regain focus reliably
-  setTimeout(() => {
-    if (screens.game.style.display === 'block') {
-      answerInput.focus();
+
+  // 👉 FIX 1: Reset the button text back to "Jawab" and auto-focus the input
+  submitBtn.textContent = "Jawab";
+  answerInput.focus();
+
+  // --- AUTOMATIC GAME LAYOUT LOGIC & ANSWER SETTING ---
+  if (currentLevel === 1) {
+    // Tahap 1: Hide a completely random letter
+    let displayArray = currentFullWord.split('');
+    
+    // 👉 FIX: Generate a random index between 0 and the length of the word
+    let hideIndex = Math.floor(Math.random() * displayArray.length); 
+    
+    currentAnswer = displayArray[hideIndex]; 
+    window.currentTargetSyllable = currentAnswer; 
+    
+    displayArray[hideIndex] = '_'; 
+    wordDisplay.textContent = displayArray.join(' ');
+  }
+  else if (currentLevel === 2) {
+    let syllablesArray = segmentWordBySyllable(currentFullWord); 
+    
+    // Generate a random index for the syllables array
+    let hideIndex = Math.floor(Math.random() * syllablesArray.length);
+    
+    currentAnswer = syllablesArray[hideIndex];
+    window.currentTargetSyllable = currentAnswer;
+    
+    // Create an array of underscores equal to the exact number of letters in the hidden syllable
+    let blanksArray = [];
+    for (let i = 0; i < currentAnswer.length; i++) {
+      blanksArray.push('_');
     }
-  }, 100); 
+    
+    // Replace the hidden syllable with the blanks (e.g., 4 letters = "_ _ _ _")
+    syllablesArray[hideIndex] = blanksArray.join(' ');
+    
+    // Join the syllables back together with an extra wide space so the 5-year-old eye can easily see the separation
+    wordDisplay.textContent = syllablesArray.join('   ');
+  }
+  else if (currentLevel === 3) {
+    // Tahap 3: Full dictation spelling
+    // 👉 FIX: The expected answer is the entire word
+    currentAnswer = currentFullWord; 
+    let blanks = [];
+    for (let i = 0; i < currentFullWord.length; i++) {
+      blanks.push('_');
+    }
+    wordDisplay.textContent = blanks.join(' ');
+  }
 }
 
 function checkAnswer() {
-  // Prevent blank submissions
-  if (submitBtn.textContent === "Jawab" && answerInput.value.trim() === "") {
+  // 👉 FIX 2: Bulletproof blank check. If the input is active but empty, block it.
+  if (!answerInput.disabled && answerInput.value.trim() === "") {
     answerInput.style.borderColor = "#e53e3e";
     setTimeout(() => answerInput.style.borderColor = "#e2e8f0", 500);
     return;
   }
 
+  // Handle transitioning to the next question or the result screen
   if (submitBtn.textContent === "Seterusnya" || submitBtn.textContent === "Lihat Keputusan") {
     currentQuestionIndex++;
     if (currentQuestionIndex < sessionQuestions.length) {
