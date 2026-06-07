@@ -157,7 +157,7 @@ mulaBtn.addEventListener('click', () => {
     return;
   }
 
-  currentLevel = levelSelect ? parseInt(levelSelect.value, 15) : 1;
+  currentLevel = levelSelect ? parseInt(levelSelect.value, 10) : 1;
   startSession();
 });
 
@@ -319,9 +319,9 @@ function startSession() {
     return;
   }
 
-  // Shuffle the massive list and pick 10 random words
+  // Shuffle the massive list and pick 15 random words
   let shuffled = [...availableQuestions].sort(() => 0.5 - Math.random());
-  sessionQuestions = shuffled.slice(0, 10);
+  sessionQuestions = shuffled.slice(0, 15);
   
   showScreen('game');
   loadQuestion();
