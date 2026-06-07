@@ -157,7 +157,7 @@ mulaBtn.addEventListener('click', () => {
     return;
   }
 
-  currentLevel = levelSelect ? parseInt(levelSelect.value, 10) : 1;
+  currentLevel = levelSelect ? parseInt(levelSelect.value, 15) : 1;
   startSession();
 });
 
